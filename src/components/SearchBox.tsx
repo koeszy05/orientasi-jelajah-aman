@@ -23,6 +23,7 @@ export default function SearchBox({ onCari }: SearchBoxProps) {
         onChangeText={setTeks}
         style={{
           flex: 1,
+          minWidth: 0,
           borderWidth: 1,
           padding: 8,
         }}

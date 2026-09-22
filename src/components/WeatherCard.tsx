@@ -1,7 +1,9 @@
 // components/WeatherCard.tsx
 
-import { View, Text } from "react-native";
+import { Text, View } from "react-native";
 import { WeatherCardProps } from "../types/cuaca";
+// 1. Tambahkan baris import ini untuk memanggil variabel dari styles.ts
+import { spacing, typeScale } from "../constants/styles";
 
 export default function WeatherCard({
   kota,
@@ -13,7 +15,7 @@ export default function WeatherCard({
   return (
     <View
       style={{
-        padding: 16,
+        padding: spacing.sedang, // 2. Ubah angka 16 jadi spacing.sedang
         borderRadius: 8,
         backgroundColor: "#F4F7FA",
       }}
@@ -21,7 +23,7 @@ export default function WeatherCard({
       <Text
         style={{
           fontWeight: "bold",
-          fontSize: 18,
+          fontSize: typeScale.judul, // 3. Ubah angka 18 jadi typeScale.judul
         }}
       >
         {kota}
@@ -38,6 +40,7 @@ export default function WeatherCard({
       <Text
         style={{
           color: warnaAQI,
+          fontSize: typeScale.isi, // Tambahan font size untuk teks biasa
         }}
       >
         AQI: {tingkatAQI}

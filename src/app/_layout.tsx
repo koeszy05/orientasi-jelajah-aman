@@ -1,18 +1,31 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
-import * as SplashScreen from 'expo-splash-screen';
-import { useColorScheme } from 'react-native';
+import { Stack } from "expo-router";
 
-import { AnimatedSplashOverlay } from '@/components/animated-icon';
-import AppTabs from '@/components/app-tabs';
-
-SplashScreen.preventAutoHideAsync();
-
-export default function TabLayout() {
-  const colorScheme = useColorScheme();
+export default function RootLayout() {
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <AnimatedSplashOverlay />
-      <AppTabs />
-    </ThemeProvider>
+    <Stack>
+      {/* 1. Menampilkan Tab Navigation sebagai halaman utama */}
+      <Stack.Screen 
+        name="(tabs)" 
+        options={{ headerShown: false }} 
+      />
+
+      {/* 2. Mendaftarkan Halaman Detail Dinamis */}
+      <Stack.Screen
+        name="detail/[kota]"
+        options={{ 
+          title: "Detail Cuaca", 
+          headerBackTitle: "Kembali" 
+        }}
+      />
+
+      {/* 3. Mendaftarkan Modal Tambah Favorit */}
+      <Stack.Screen
+        name="tambah-favorit"
+        options={{
+          presentation: "modal",
+          title: "Tambah Favorit",
+        }}
+      />
+    </Stack>
   );
 }

@@ -3,10 +3,10 @@
 import { useEffect, useState } from "react";
 import { View } from "react-native";
 
-import WeatherCard from "../components/WeatherCard";
-import SearchBox from "../components/SearchBox";
-import RiwayatList from "../components/RiwayatList";
-import IndikatorAQI from "../components/IndikatorAQI";
+import IndikatorAQI from "../../components/IndikatorAQI";
+import RiwayatList from "../../components/RiwayatList";
+import SearchBox from "../../components/SearchBox";
+import WeatherCard from "../../components/WeatherCard";
 
 export default function HalamanUtama() {
   const [kotaAktif, setKotaAktif] = useState("Pekalongan");

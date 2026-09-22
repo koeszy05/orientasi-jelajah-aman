@@ -38,7 +38,7 @@ export default function TabTentang() {
           fontSize: typeScale.isi, // Menerapkan typeScale untuk isi
         }}
       >
-        Dibuat oleh: [Nama Kamu] {/* Jangan lupa ubah ini dengan namamu sendiri */}
+        Dibuat oleh: Reza
       </Text>
     </SafeAreaView>
   );

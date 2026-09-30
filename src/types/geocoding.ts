@@ -1,15 +1,12 @@
-// src/types/location.ts
-
-export interface GeocodingResult {
+export interface HasilGeocoding {
   id: number;
   name: string;
   latitude: number;
   longitude: number;
   country: string;
-  admin1?: string; // Provinsi / wilayah administratif (opsional jika tidak ada)
+  admin1?: string;
 }
 
 export interface GeocodingResponse {
-  results?: GeocodingResult[]; // Bersifat opsional karena saat data kosong results tidak dikirim
-  generationtime_ms?: number;
+  results?: HasilGeocoding[];
 }

@@ -1,5 +1,12 @@
 import { useState, useEffect } from "react";
-import { View, Text, ActivityIndicator, ScrollView } from "react-native";
+import {
+  View,
+  Text,
+  ActivityIndicator,
+  ScrollView,
+  TouchableOpacity,
+  StyleSheet,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import SearchBox from "../../components/SearchBox";
 import WeatherCard from "../../components/WeatherCard";
@@ -11,110 +18,291 @@ import { ambilKualitasUdara } from "../../services/airQualityService";
 import { konversiTingkatAQI } from "../../services/weatherAdapter";
 import { TingkatAQI } from "../../types/cuaca";
 
-interface ItemKotaCuaca {
+interface KotaGeocoding {
   id: number;
   name: string;
+  latitude: number;
+  longitude: number;
+  admin1?: string;
+  country?: string;
+}
+
+interface DetailKotaCuaca {
+  kota: string;
   suhu: number;
   indeksAQI?: number;
   tingkatAQI: TingkatAQI;
+  suhuMaks?: number;
+  suhuMin?: number;
+  kondisi?: string;
+  kecepatanAngin?: number;
+  pm25?: number;
+  pm10?: number;
 }
 
 export default function HalamanUtama() {
   const [teksCari, setTeksCari] = useState("");
-  const [daftarKotaCuaca, setDaftarKotaCuaca] = useState<ItemKotaCuaca[]>([]);
-  const [sedangMemuat, setSedangMemuat] = useState(false);
+  const [daftarKota, setDaftarKota] = useState<KotaGeocoding[]>([]);
+  const [kotaTerpilih, setKotaTerpilih] = useState<KotaGeocoding | null>(null);
+  const [dataCuaca, setDataCuaca] = useState<DetailKotaCuaca | null>(null);
+
+  const [sedangMemuatKota, setSedangMemuatKota] = useState(false);
+  const [sedangMemuatCuaca, setSedangMemuatCuaca] = useState(false);
 
   const teksTertunda = useDebounce(teksCari, 500);
 
+  // 1. Ambil daftar kota saat input pencarian berubah
   useEffect(() => {
     let aktif = true;
 
     if (teksTertunda.trim().length === 0) {
-      setDaftarKotaCuaca([]);
-      setSedangMemuat(false);
+      setDaftarKota([]);
+      setKotaTerpilih(null);
+      setDataCuaca(null);
+      setSedangMemuatKota(false);
       return;
     }
 
-    async function muatDataKotaDanCuaca() {
-      setSedangMemuat(true);
-
+    async function muatDaftarKota() {
+      setSedangMemuatKota(true);
       try {
-        const hasilGeocoding = await cariKota(teksTertunda);
-
-        const dataLengkap = await Promise.all(
-          hasilGeocoding.map(async (kota) => {
-            try {
-              const [dataCuaca, dataAQI] = await Promise.all([
-                ambilCuaca(kota.latitude, kota.longitude),
-                ambilKualitasUdara(kota.latitude, kota.longitude),
-              ]);
-
-              return {
-                id: kota.id,
-                name: kota.name,
-                suhu: Math.round(dataCuaca.saatIni.suhu),
-                indeksAQI: dataAQI.indeksAQI,
-                tingkatAQI: konversiTingkatAQI(dataAQI.indeksAQI),
-              };
-            } catch {
-              return {
-                id: kota.id,
-                name: kota.name,
-                suhu: 0,
-                tingkatAQI: "BAIK" as TingkatAQI,
-              };
-            }
-          })
-        );
-
+        const hasil = await cariKota(teksTertunda);
         if (aktif) {
-          setDaftarKotaCuaca(dataLengkap);
+          setDaftarKota(hasil);
+          // Pilih kota urutan pertama secara default
+          if (hasil && hasil.length > 0) {
+            setKotaTerpilih(hasil[0]);
+          } else {
+            setKotaTerpilih(null);
+            setDataCuaca(null);
+          }
         }
       } catch {
         if (aktif) {
-          setDaftarKotaCuaca([]);
+          setDaftarKota([]);
+          setKotaTerpilih(null);
+          setDataCuaca(null);
         }
       } finally {
         if (aktif) {
-          setSedangMemuat(false);
+          setSedangMemuatKota(false);
         }
       }
     }
 
-    muatDataKotaDanCuaca();
+    muatDaftarKota();
 
     return () => {
       aktif = false;
     };
   }, [teksTertunda]);
 
+  // 2. Ambil detail cuaca & kualitas udara untuk kota yang dipilih
+  useEffect(() => {
+    let aktif = true;
+
+    if (!kotaTerpilih) {
+      setDataCuaca(null);
+      return;
+    }
+
+    async function muatDetailCuaca() {
+      setSedangMemuatCuaca(true);
+      try {
+        const [resCuaca, resAQI] = await Promise.all([
+          ambilCuaca(kotaTerpilih!.latitude, kotaTerpilih!.longitude),
+          ambilKualitasUdara(kotaTerpilih!.latitude, kotaTerpilih!.longitude),
+        ]);
+
+        if (aktif) {
+          const c: any = resCuaca;
+          const a: any = resAQI;
+
+          const suhuSekarang =
+            c?.saatIni?.suhu ?? c?.suhu ?? c?.current_weather?.temperature ?? 0;
+
+          const maks =
+            c?.harian?.suhuMaks ??
+            c?.harian?.suhuMaksimal ??
+            c?.harian?.temperature_2m_max?.[0] ??
+            c?.daily?.temperature_2m_max?.[0];
+
+          const min =
+            c?.harian?.suhuMin ??
+            c?.harian?.suhuMinimal ??
+            c?.harian?.temperature_2m_min?.[0] ??
+            c?.daily?.temperature_2m_min?.[0];
+
+          const angin =
+            c?.saatIni?.kecepatanAngin ??
+            c?.current_weather?.windspeed ??
+            c?.saatIni?.windspeed;
+
+          const kondisiTeks =
+            c?.saatIni?.kondisiCuaca ??
+            c?.saatIni?.deskripsi ??
+            c?.deskripsi ??
+            "Berawan Sebagian";
+
+          setDataCuaca({
+            kota: kotaTerpilih!.name,
+            suhu: Math.round(suhuSekarang),
+            indeksAQI: a?.indeksAQI ?? a?.aqi,
+            tingkatAQI: konversiTingkatAQI(a?.indeksAQI ?? a?.aqi ?? 0),
+            suhuMaks: maks !== undefined ? Math.round(maks) : undefined,
+            suhuMin: min !== undefined ? Math.round(min) : undefined,
+            kondisi: kondisiTeks,
+            kecepatanAngin: angin !== undefined ? Math.round(angin) : undefined,
+            pm25: a?.pm25 ?? a?.pm2_5,
+            pm10: a?.pm10,
+          });
+        }
+      } catch {
+        if (aktif) {
+          setDataCuaca(null);
+        }
+      } finally {
+        if (aktif) {
+          setSedangMemuatCuaca(false);
+        }
+      }
+    }
+
+    muatDetailCuaca();
+
+    return () => {
+      aktif = false;
+    };
+  }, [kotaTerpilih]);
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
       <ScrollView contentContainerStyle={{ padding: 16, gap: 12 }}>
         <SearchBox onCari={setTeksCari} />
 
-        {daftarKotaCuaca.length > 0 && !sedangMemuat && (
-          <Text style={{ fontSize: 13, color: "#666" }}>
-            Ditemukan {daftarKotaCuaca.length} kota
+        {daftarKota.length > 0 && !sedangMemuatKota && (
+          <Text style={styles.labelTotalKota}>
+            Ditemukan {daftarKota.length} kota (Pilih salah satu):
           </Text>
         )}
 
-        {sedangMemuat && (
-          <ActivityIndicator size="small" style={{ marginVertical: 12 }} />
+        {sedangMemuatKota && (
+          <ActivityIndicator size="small" style={{ marginVertical: 8 }} />
         )}
 
-        {daftarKotaCuaca.map((kota) => (
+        {/* Daftar List Hasil Pencarian Kota */}
+        <View style={styles.listKotaWrapper}>
+          {daftarKota.map((kota) => {
+            const isSelected = kotaTerpilih?.id === kota.id;
+            const subWilayah = [kota.admin1, kota.country]
+              .filter(Boolean)
+              .join(", ");
+
+            return (
+              <TouchableOpacity
+                key={kota.id}
+                onPress={() => setKotaTerpilih(kota)}
+                activeOpacity={0.7}
+                style={[styles.cityRow, isSelected && styles.cityRowSelected]}
+              >
+                <View style={{ flex: 1 }}>
+                  <Text
+                    style={[
+                      styles.cityName,
+                      isSelected && styles.cityNameSelected,
+                    ]}
+                  >
+                    {kota.name}
+                  </Text>
+                  {subWilayah ? (
+                    <Text style={styles.cityRegion}>{subWilayah}</Text>
+                  ) : null}
+                </View>
+
+                <Text
+                  style={
+                    isSelected ? styles.badgeSelected : styles.badgeAction
+                  }
+                >
+                  {isSelected ? "Terpilih ✓" : "Lihat →"}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        {/* Detail Cuaca Kota yang Terpilih */}
+        {sedangMemuatCuaca && (
+          <ActivityIndicator size="small" style={{ marginVertical: 20 }} />
+        )}
+
+        {dataCuaca && !sedangMemuatCuaca && (
           <WeatherCard
-            key={kota.id}
-            kota={kota.name}
-            suhu={kota.suhu}
-            indeksAQI={kota.indeksAQI}
-            tingkatAQI={kota.tingkatAQI}
+            kota={dataCuaca.kota}
+            suhu={dataCuaca.suhu}
+            indeksAQI={dataCuaca.indeksAQI}
+            tingkatAQI={dataCuaca.tingkatAQI}
+            suhuMaks={dataCuaca.suhuMaks}
+            suhuMin={dataCuaca.suhuMin}
+            kondisi={dataCuaca.kondisi}
+            kecepatanAngin={dataCuaca.kecepatanAngin}
+            pm25={dataCuaca.pm25}
+            pm10={dataCuaca.pm10}
           />
-        ))}
+        )}
 
         <AtribusiCuaca />
       </ScrollView>
     </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  labelTotalKota: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#0f172a",
+    marginTop: 4,
+  },
+  listKotaWrapper: {
+    gap: 6,
+  },
+  cityRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    backgroundColor: "#fff",
+  },
+  cityRowSelected: {
+    borderColor: "#38bdf8",
+    backgroundColor: "#f0f9ff",
+  },
+  cityName: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#0f172a",
+  },
+  cityNameSelected: {
+    color: "#0284c7",
+  },
+  cityRegion: {
+    fontSize: 11,
+    color: "#64748b",
+    marginTop: 2,
+  },
+  badgeSelected: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#0284c7",
+  },
+  badgeAction: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#0284c7",
+  },
+});

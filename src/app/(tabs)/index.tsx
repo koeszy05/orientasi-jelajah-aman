@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -8,8 +8,9 @@ import {
   TouchableOpacity,
   StyleSheet,
 } from "react-native";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { mintaIzinLokasi, ambilKoordinatSaatIni } from "../../services/locationService";
+import { ambilSemuaFavorit } from "../../services/favoritStorage";
 import { SafeAreaView } from "react-native-safe-area-context";
 import SearchBox from "../../components/SearchBox";
 import WeatherCard from "../../components/WeatherCard";
@@ -49,13 +50,20 @@ export default function HalamanUtama() {
   const [daftarKota, setDaftarKota] = useState<KotaGeocoding[]>([]);
   const [kotaTerpilih, setKotaTerpilih] = useState<KotaGeocoding | null>(null);
   const [dataCuaca, setDataCuaca] = useState<DetailKotaCuaca | null>(null);
+  const [daftarFavoritIds, setDaftarFavoritIds] = useState<number[]>([]);
 
   const [sedangMemuatKota, setSedangMemuatKota] = useState(false);
   const [sedangMemuatCuaca, setSedangMemuatCuaca] = useState(false);
 
   const teksTertunda = useDebounce(teksCari, 500);
 
-  // 1. Ambil daftar kota saat input pencarian berubah
+  // Ambil ID favorit setiap kali layar beranda aktif
+  useFocusEffect(
+    useCallback(() => {
+      ambilSemuaFavorit().then((favs) => setDaftarFavoritIds(favs.map((f) => f.id)));
+    }, [])
+  );
+
   useEffect(() => {
     let aktif = true;
 
@@ -100,7 +108,6 @@ export default function HalamanUtama() {
     };
   }, [teksTertunda]);
 
-  // 2. Ambil detail cuaca & kualitas udara untuk kota yang dipilih
   useEffect(() => {
     let aktif = true;
 
@@ -178,7 +185,6 @@ export default function HalamanUtama() {
     };
   }, [kotaTerpilih]);
 
-  // Fungsi gunakan lokasi sesuai modul
   async function gunakanLokasiSaatIni() {
     const status = await mintaIzinLokasi();
 
@@ -204,12 +210,14 @@ export default function HalamanUtama() {
     });
   }
 
+  // Cek apakah kota terpilih sudah tersimpan di daftar favorit
+  const sudahFavorit = kotaTerpilih ? daftarFavoritIds.includes(kotaTerpilih.id) : false;
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
       <ScrollView contentContainerStyle={{ padding: 16, gap: 12 }}>
         <SearchBox onCari={setTeksCari} />
 
-        {/* Tombol Lokasi & Pesan Error */}
         <Button title="Gunakan Lokasi Saat Ini" onPress={gunakanLokasiSaatIni} />
         {pesanLokasi && <Text style={{ color: "#dc2626", fontSize: 12 }}>{pesanLokasi}</Text>}
 
@@ -223,7 +231,6 @@ export default function HalamanUtama() {
           <ActivityIndicator size="small" style={{ marginVertical: 8 }} />
         )}
 
-        {/* Daftar List Hasil Pencarian Kota */}
         <View style={styles.listKotaWrapper}>
           {daftarKota.map((kota) => {
             const isSelected = kotaTerpilih?.id === kota.id;
@@ -264,12 +271,10 @@ export default function HalamanUtama() {
           })}
         </View>
 
-        {/* Detail Cuaca Kota yang Terpilih */}
         {sedangMemuatCuaca && (
           <ActivityIndicator size="small" style={{ marginVertical: 20 }} />
         )}
 
-        {/* Tahap 6: WeatherCard + Tombol Tambah ke Favorit */}
         {dataCuaca && !sedangMemuatCuaca && kotaTerpilih && (
           <>
             <WeatherCard
@@ -285,8 +290,10 @@ export default function HalamanUtama() {
               pm10={dataCuaca.pm10}
             />
 
+            {/* 3. Nonaktifkan tombol jika sudah favorit */}
             <Button
-              title="Tambahkan ke Favorit"
+              title={sudahFavorit ? "Sudah di Favorit ✓" : "Tambahkan ke Favorit"}
+              disabled={sudahFavorit}
               onPress={() =>
                 router.push({
                   pathname: "/tambah-favorit",

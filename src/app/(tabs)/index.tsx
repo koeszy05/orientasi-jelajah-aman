@@ -2,11 +2,13 @@ import { useState, useEffect } from "react";
 import {
   View,
   Text,
+  Button,
   ActivityIndicator,
   ScrollView,
   TouchableOpacity,
   StyleSheet,
 } from "react-native";
+import { mintaIzinLokasi, ambilKoordinatSaatIni } from "../../services/locationService";
 import { SafeAreaView } from "react-native-safe-area-context";
 import SearchBox from "../../components/SearchBox";
 import WeatherCard from "../../components/WeatherCard";
@@ -41,6 +43,7 @@ interface DetailKotaCuaca {
 }
 
 export default function HalamanUtama() {
+  const [pesanLokasi, setPesanLokasi] = useState<string | null>(null);
   const [teksCari, setTeksCari] = useState("");
   const [daftarKota, setDaftarKota] = useState<KotaGeocoding[]>([]);
   const [kotaTerpilih, setKotaTerpilih] = useState<KotaGeocoding | null>(null);
@@ -69,7 +72,6 @@ export default function HalamanUtama() {
         const hasil = await cariKota(teksTertunda);
         if (aktif) {
           setDaftarKota(hasil);
-          // Pilih kota urutan pertama secara default
           if (hasil && hasil.length > 0) {
             setKotaTerpilih(hasil[0]);
           } else {
@@ -175,10 +177,40 @@ export default function HalamanUtama() {
     };
   }, [kotaTerpilih]);
 
+  // Fungsi gunakan lokasi sesuai modul Halaman 6
+  async function gunakanLokasiSaatIni() {
+    const status = await mintaIzinLokasi();
+
+    if (status === "denied") {
+      setPesanLokasi("Izin lokasi ditolak. Silakan cari kota secara manual di atas.");
+      return;
+    }
+
+    if (status === "unavailable") {
+      setPesanLokasi("Layanan lokasi tidak aktif di perangkat ini. Silakan cari kota secara manual.");
+      return;
+    }
+
+    setPesanLokasi(null);
+    const koordinat = await ambilKoordinatSaatIni();
+
+    setKotaTerpilih({
+      id: -1,
+      name: "Lokasi Saat Ini",
+      latitude: koordinat.latitude,
+      longitude: koordinat.longitude,
+      country: "",
+    });
+  }
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
       <ScrollView contentContainerStyle={{ padding: 16, gap: 12 }}>
         <SearchBox onCari={setTeksCari} />
+
+        {/* Tombol Lokasi & Pesan Error Tahap 3 */}
+        <Button title="Gunakan Lokasi Saat Ini" onPress={gunakanLokasiSaatIni} />
+        {pesanLokasi && <Text style={{ color: "#dc2626", fontSize: 12 }}>{pesanLokasi}</Text>}
 
         {daftarKota.length > 0 && !sedangMemuatKota && (
           <Text style={styles.labelTotalKota}>

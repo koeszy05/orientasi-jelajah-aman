@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   StyleSheet,
 } from "react-native";
+import { router } from "expo-router";
 import { mintaIzinLokasi, ambilKoordinatSaatIni } from "../../services/locationService";
 import { SafeAreaView } from "react-native-safe-area-context";
 import SearchBox from "../../components/SearchBox";
@@ -177,7 +178,7 @@ export default function HalamanUtama() {
     };
   }, [kotaTerpilih]);
 
-  // Fungsi gunakan lokasi sesuai modul Halaman 6
+  // Fungsi gunakan lokasi sesuai modul
   async function gunakanLokasiSaatIni() {
     const status = await mintaIzinLokasi();
 
@@ -208,7 +209,7 @@ export default function HalamanUtama() {
       <ScrollView contentContainerStyle={{ padding: 16, gap: 12 }}>
         <SearchBox onCari={setTeksCari} />
 
-        {/* Tombol Lokasi & Pesan Error Tahap 3 */}
+        {/* Tombol Lokasi & Pesan Error */}
         <Button title="Gunakan Lokasi Saat Ini" onPress={gunakanLokasiSaatIni} />
         {pesanLokasi && <Text style={{ color: "#dc2626", fontSize: 12 }}>{pesanLokasi}</Text>}
 
@@ -268,19 +269,37 @@ export default function HalamanUtama() {
           <ActivityIndicator size="small" style={{ marginVertical: 20 }} />
         )}
 
-        {dataCuaca && !sedangMemuatCuaca && (
-          <WeatherCard
-            kota={dataCuaca.kota}
-            suhu={dataCuaca.suhu}
-            indeksAQI={dataCuaca.indeksAQI}
-            tingkatAQI={dataCuaca.tingkatAQI}
-            suhuMaks={dataCuaca.suhuMaks}
-            suhuMin={dataCuaca.suhuMin}
-            kondisi={dataCuaca.kondisi}
-            kecepatanAngin={dataCuaca.kecepatanAngin}
-            pm25={dataCuaca.pm25}
-            pm10={dataCuaca.pm10}
-          />
+        {/* Tahap 6: WeatherCard + Tombol Tambah ke Favorit */}
+        {dataCuaca && !sedangMemuatCuaca && kotaTerpilih && (
+          <>
+            <WeatherCard
+              kota={dataCuaca.kota}
+              suhu={dataCuaca.suhu}
+              indeksAQI={dataCuaca.indeksAQI}
+              tingkatAQI={dataCuaca.tingkatAQI}
+              suhuMaks={dataCuaca.suhuMaks}
+              suhuMin={dataCuaca.suhuMin}
+              kondisi={dataCuaca.kondisi}
+              kecepatanAngin={dataCuaca.kecepatanAngin}
+              pm25={dataCuaca.pm25}
+              pm10={dataCuaca.pm10}
+            />
+
+            <Button
+              title="Tambahkan ke Favorit"
+              onPress={() =>
+                router.push({
+                  pathname: "/tambah-favorit",
+                  params: {
+                    id: String(kotaTerpilih.id),
+                    nama: kotaTerpilih.name,
+                    lat: String(kotaTerpilih.latitude),
+                    lon: String(kotaTerpilih.longitude),
+                  },
+                })
+              }
+            />
+          </>
         )}
 
         <AtribusiCuaca />
